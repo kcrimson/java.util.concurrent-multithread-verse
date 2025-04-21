@@ -1,0 +1,1 @@
+// Copyright © 2025 Symentis.pl (Jarosław Pałka)

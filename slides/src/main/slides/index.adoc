@@ -1,4 +1,5 @@
-= Slides bootstrap
+= Concurrency Beyond ReentrantLock 
+
 :idprefix:
 :stem: asciimath
 :backend: html
@@ -13,23 +14,104 @@
 :imagesdir: images
 :customcss: css/custom.css
 :icons: font
-:title-slide-background-image: pexels-pixabay-327049.jpg
+:title-slide-background-image: opening-slide.png
 
-== code
+== !
 
-[source,java]
-----
-System.out.println("Hello");
-----
+image::opening-slide.png[background,size=cover]
 
-== diagrams
+== Java Memory Model
 
-[graphviz]
-----
-digraph{
-    A->B
-    C->D
-    D->B
-    B->C
-}
-----
+its formal specification is complex +
+once you understand it, +
+you loose ability to explain it to others +
+(aka Aleksey Shipilëv paradox)
+
+=== !
+
+sequentially consistency in absence of data races
+
+transitive closure (from set theory) of:
+
+* program order
+* synchronization order
+* synchronizes-with relation
+* happens-before relation
+
+=== !
+
+it is simple as long as you focus on effects +
+not on formalisms and implementation details
+
+I made this mistake few years ago
+
+=== here is my story
+
+* read https://gee.cs.oswego.edu/dl/jmm/cookbook.html[The JSR-133 Cookbook for Compiler Writers by Doug Lee], **DON'T DO IT**, this is for language designers and compiler writers, fallen into trap of memory barriers
+* **NOTICE** this article outdated, read https://gee.cs.oswego.edu/dl/html/j9mm.html[Using JDK 9 Memory Order Modes by Doug Lea]
+* read https://shipilev.net/blog/2014/jmm-pragmatics/[Java Memory Model Pragmatics by Aleksey Shipilëv], didn't understand half of terms used in it
+* in desperation, I bought https://link.springer.com/book/10.1007/978-3-031-01764-3[A Primer on Memory Consistency and Cache Coherence], got depressed after first chapter
+
+=== !
+
+* did few months break from memory models, got into JVM internals in meantime :)
+* somebody in my close circle recommended me to read  https://shipilev.net/blog/2016/close-encounters-of-jmm-kind/[Close Encounters of The Java Memory Model Kind by Aleksey Shipilëv]
+* I realised, I am too stupid to understand this, went back to writing JSONs
+
+=== !
+
+* read Java Memory Model Pragmatics, few "aha" moments,
+* got too excited and read The Java Virtual Machine Specification, I am stupid again
+* found out that https://github.com/openjdk/jcstress/[Java Concurrency Stress] has https://github.com/openjdk/jcstress/tree/master/jcstress-samples/src/main/java/org/openjdk/jcstress/samples/jmm/basic[examples] that cover all JMM scenarios, series of painful facepalms
+
+=== !
+
+* read Java Memory Model Pragmatics third time, yeap, kind of got it
+* Shipilëv admits he got it wrong, https://shipilev.net/talks/geecon-May2018-jmm.pdf["Java Memory Model, Unlearning Experience"]
+* WTF, here we go again
+
+=== !
+
+few important takeaways
+
+* never, ever, give up
+* if you are not a compiler writer, formalisms are not for you
+* focus on effects, and implementation details will come later
+* people designing these things are not the best one to explain it
+* multicore CPUs are distributed systems on a chip
+
+== happens before relation
+
+When we say "A happens before B" +
+it means that all *actions* and *memory changes* +
+in A are guaranteed to be visible to B
+
+=== !
+
+If thread 1 writes to a variable and thread 2 reads it later, without proper "happens before" relationship, thread 2 might see an old/stale value
+
+=== !
+
+This is why we can't just use regular variables shared between threads - they don't establish "happens before" and are not immune to hardware optimizations and memory ordering for your CPU
+
+=== !
+
+* Java Memory Model defines pairs of actions that establish "happens before" relationship
+** volatile write followed by volatile read
+** synchronized enter and exit
+** lock acquire and release
+
+[role=""]
+== java.util.concurrent
+
+image::https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWE4amNzcTZ3ZXllY3Q1aHhuNjhhN2ZhdXhpZGE5MDY5c2QxajltcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Yxoeu3U5wVYVG/giphy.gif[background]
+
+== java.util.concurrent
+
+* locks
+* queues
+* barriers
+* atomics
+* executors
+* futures
+
