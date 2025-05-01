@@ -6,9 +6,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 
 /**
- * A generic object pool implementation using a BlockingQueue and Semaphore.
- * The semaphore controls the maximum number of objects that can be borrowed at once,
- * while the queue stores available objects.
+ * A thread-safe object pool implementation with minimum and maximum capacity.
+ * Objects are managed using a BlockingQueue and Semaphore to control concurrent access.
+ * The pool auto-creates objects up to maximum capacity and maintains minimum number
+ * of valid objects. Invalid objects are replaced to maintain minimum capacity.
  *
  * @param <T> the type of objects stored in the pool
  */
@@ -25,8 +26,10 @@ public class Pool<T extends AutoCloseable> {
     /**
      * Creates a new object pool with the specified maxCapacity and factory method.
      *
+     * @param minCapacity the minimum number of objects in the pool
      * @param maxCapacity the maximum number of objects in the pool
      * @param factory     the supplier function to create new objects
+     * @param validator   the validator function to check if an object is valid
      */
     public Pool(int minCapacity, int maxCapacity, ObjectFactory<T> factory, ObjectValidator<T> validator) {
         if (maxCapacity < minCapacity)
@@ -35,7 +38,7 @@ public class Pool<T extends AutoCloseable> {
         this.minCapacity = minCapacity;
         this.maxCapacity = maxCapacity;
         this.resources = new LinkedBlockingQueue<>(maxCapacity);
-        this.semaphore = new Semaphore(maxCapacity, true); // fair semaphore
+        this.semaphore = new Semaphore(maxCapacity, false); // fair semaphore
         this.factory = factory;
         this.validator = validator;
 

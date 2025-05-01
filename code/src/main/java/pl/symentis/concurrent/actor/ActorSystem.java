@@ -32,33 +32,38 @@ public class ActorSystem {
     /**
      * Registers a new actor with the system.
      *
-     * @param <T> the type of messages this actor processes
-     * @param actorId a unique identifier for the actor
+     * @param <T>             the type of messages this actor processes
+     * @param actorId         a unique identifier for the actor
      * @param mailboxCapacity the maximum capacity of the actor's mailbox
-     * @param messageHandler the function that processes messages
-     * @return true if the actor was registered, false if an actor with this ID already exists
+     * @param messageHandler  the function that processes messages
+     * @return null if an actor with the same ID already exists, otherwise a new ActorRef
      */
-    public <T> boolean registerActor(String actorId, int mailboxCapacity, Consumer<T> messageHandler) {
+    public <T> ActorRef<T> registerActor(String actorId, int mailboxCapacity, Consumer<T> messageHandler) {
         ActorContext<T> actorContext = new ActorContext<>(actorId, mailboxCapacity, messageHandler);
         if (actors.putIfAbsent(actorId, actorContext) != null) {
-            return false; // Actor with this ID already exists
+            return null; // Actor with this ID already exists
         }
 
         // Schedule the initial processing task
         scheduleProcessing(actorContext);
-        return true;
+        return new ActorRef<>(actorId, this) {
+            @Override
+            public boolean send(T message) {
+                return ActorSystem.this.send(actorId, message);
+            }
+        };
     }
 
     /**
      * Sends a message to a specific actor.
      *
-     * @param <T> the type of the message
+     * @param <T>     the type of the message
      * @param actorId the ID of the target actor
      * @param message the message to send
      * @return true if the message was sent, false if the actor doesn't exist or the mailbox is full
      */
     @SuppressWarnings("unchecked")
-    public <T> boolean send(String actorId, T message) {
+    private <T> boolean send(String actorId, T message) {
         ActorContext<T> actorContext = (ActorContext<T>) actors.get(actorId);
         if (actorContext == null) {
             return false;
@@ -105,7 +110,7 @@ public class ActorSystem {
      */
     public void shutdown() {
         if (isRunning.compareAndSet(true, false)) {
-            executorService.shutdown();
+            executorService.close();
         }
     }
 

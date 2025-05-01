@@ -1,34 +1,27 @@
 plugins {
     id("java")
     id("com.diffplug.spotless") version "6.25.0"
+    id("io.github.reyerizo.gradle.jcstress") version "0.8.15"
 }
 
 repositories {
     mavenCentral()
 }
 
-dependencies{
+dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
     testImplementation("org.assertj:assertj-core:3.27.3")
     testImplementation("org.awaitility:awaitility:4.3.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-//tasks.withType<JavaCompile> {
-//    options.compilerArgs.add("--enable-preview")
-//}
-//
-//tasks.withType<Test> {
-//    jvmArgs("--enable-preview")
-//}
-//
-//tasks.withType<JavaExec> {
-//    jvmArgs("--enable-preview")
-//}
-
 tasks.test {
     // Use JUnit Platform for unit tests
     useJUnitPlatform()
+}
+
+jcstress {
+    jcstressDependency = "org.openjdk.jcstress:jcstress-core:0.16"
 }
 
 spotless {
