@@ -46,7 +46,7 @@ public class ActorSystem {
 
         // Schedule the initial processing task
         scheduleProcessing(actorContext);
-        return new ActorRef<>(actorId, this) {
+        return new ActorRef<>(actorId) {
             @Override
             public boolean send(T message) {
                 return ActorSystem.this.send(actorId, message);

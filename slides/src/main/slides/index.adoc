@@ -20,6 +20,24 @@
 
 image::opening-slide.png[background,size=cover]
 
+== what is concurrency
+
+Concurrency in computer science refers to the **ability of different parts of a program to execute independently and simultaneously**. +
+
+It enables multiple computations to progress at the same time, either by allowing different parts of a program to be **executed out of order** or simultaneously on multiple processors. +
+
+This concept is fundamental to modern computing, where systems need to handle multiple tasks efficiently, respond to various events, and maximize the use of available computing resources. +
+
+Concurrent programming allows applications to remain responsive while performing time-consuming operations, handle multiple user requests simultaneously, and take **advantage of multi-core processors for improved performance**.
+
+== why concurrency matters
+
+Concurrency has become increasingly important in modern software development for several reasons.
+Modern hardware architectures feature multiple processing cores, making concurrent programming essential for utilizing the full potential of available computing resources.
+Applications need to remain responsive while performing complex calculations or I/O operations, which is achieved through concurrent execution.
+In distributed systems and web applications, concurrency enables handling multiple user requests simultaneously, improving scalability and user experience.
+Additionally, certain problems naturally lend themselves to concurrent solutions, such as simulation systems, real-time data processing, and parallel algorithms, where concurrent execution can significantly improve performance and efficiency.
+
 == Java Memory Model
 
 its formal specification is complex +

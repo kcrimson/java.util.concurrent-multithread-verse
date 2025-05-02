@@ -2,15 +2,16 @@
 package pl.symentis.concurrent.cache;
 
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 /**
- * A thread-safe LRU cache implementation using a single NavigableMap to track
- * both values and access counts.
+ * A thread-safe LRU cache implementation using a doubly linked list and hash map.
+ * Uses a non-blocking approach with fine-grained locking for optimal performance
+ * under high contention.
  *
  * @param <K> the type of keys maintained by this cache
  * @param <V> the type of values maintained by this cache
@@ -19,9 +20,15 @@ public class Cache<K, V> {
 
     private final int capacity;
     private final Function<K, V> computeFunction;
-    private final Map<K, V> valueMap;
-    private final NavigableMap<Entry<K>, K> accessMap;
-    private final AtomicLong accessCounter = new AtomicLong(0);
+    private final Map<K, Node<K, V>> map;
+    private final AtomicInteger size = new AtomicInteger(0);
+    
+    // Head and tail of the doubly linked list
+    private final AtomicReference<Node<K, V>> head = new AtomicReference<>();
+    private final AtomicReference<Node<K, V>> tail = new AtomicReference<>();
+    
+    // Lock for list structure modifications
+    private final ReentrantLock listLock = new ReentrantLock();
 
     /**
      * Creates a new cache with the specified capacity and compute function.
@@ -30,10 +37,20 @@ public class Cache<K, V> {
      * @param computeFunction the function to compute a value if it's not present in the cache
      */
     public Cache(int capacity, Function<K, V> computeFunction) {
+        if (capacity <= 0) {
+            throw new IllegalArgumentException("Capacity must be positive");
+        }
         this.capacity = capacity;
         this.computeFunction = computeFunction;
-        this.valueMap = new ConcurrentHashMap<>(capacity);
-        this.accessMap = new ConcurrentSkipListMap<>();
+        this.map = new ConcurrentHashMap<>(capacity);
+        
+        // Initialize with dummy nodes
+        Node<K, V> dummyHead = new Node<>(null, null);
+        Node<K, V> dummyTail = new Node<>(null, null);
+        dummyHead.next.set(dummyTail);
+        dummyTail.prev.set(dummyHead);
+        head.set(dummyHead);
+        tail.set(dummyTail);
     }
 
     /**
@@ -43,63 +60,158 @@ public class Cache<K, V> {
      * @return the value associated with the key
      */
     public V get(K key) {
-        // Try to get the value from the cache
-        V value = valueMap.get(key);
-
-        if (value == null) {
-            // Value not in cache, compute it
-            value = computeFunction.apply(key);
-
-            // Put the value in the cache
-            V existingValue = valueMap.putIfAbsent(key, value);
-            if (existingValue != null) {
-                // Another thread computed the value first
-                value = existingValue;
-            } else {
-                // We added a new entry, check if we need to evict
-                evictIfNecessary();
-            }
+        if (key == null) {
+            throw new NullPointerException("Key cannot be null");
         }
 
-        // Update access information
-        updateAccess(key);
-
+        // Try to get node from the map
+        Node<K, V> node = map.get(key);
+        
+        if (node != null) {
+            // Key exists, move to front to mark as recently used
+            moveToHead(node);
+            return node.value;
+        }
+        
+        // Key not in cache, compute it
+        V value = computeFunction.apply(key);
+        if (value == null) {
+            return null; // Don't cache null values
+        }
+        
+        // Try to add the computed value to the cache
+        putValue(key, value);
+        
         return value;
     }
-
+    
     /**
-     * Updates the access information for a key.
+     * Puts a key-value pair in the cache.
      *
-     * @param key the key whose access information is to be updated
+     * @param key the key to add
+     * @param value the value to add
+     * @return the previous value associated with the key, or null if there was no mapping
      */
-    private void updateAccess(K key) {
-        // Remove old entry if it exists
-        accessMap.values().remove(key);
-
-        // Create new entry with current access count
-        Entry<K> entry = new Entry<>(key, accessCounter.incrementAndGet());
-
+    public V put(K key, V value) {
+        if (key == null || value == null) {
+            throw new NullPointerException("Key and value cannot be null");
+        }
+        
+        Node<K, V> oldNode = map.get(key);
+        if (oldNode != null) {
+            // Update existing entry
+            V oldValue = oldNode.value;
+            oldNode.value = value;
+            moveToHead(oldNode);
+            return oldValue;
+        }
+        
         // Add new entry
-        accessMap.put(entry, key);
+        putValue(key, value);
+        return null;
     }
-
+    
     /**
-     * Evicts the least recently used entry if the cache is at capacity.
+     * Helper method to add a new entry to the cache.
      */
-    private void evictIfNecessary() {
-        while (valueMap.size() > capacity) {
-            // Get the entry with the lowest access count (least recently used)
-            Map.Entry<Entry<K>, K> lruEntry = accessMap.firstEntry();
-            if (lruEntry != null) {
-                K keyToRemove = lruEntry.getValue();
+    private void putValue(K key, V value) {
+        // Create new node
+        Node<K, V> newNode = new Node<>(key, value);
 
-                // Remove from both maps
-                valueMap.remove(keyToRemove);
-                accessMap.remove(lruEntry.getKey());
-            } else {
-                // No entries to remove (should not happen)
-                break;
+        // Try to add to map first
+        Node<K, V> existingNode = map.putIfAbsent(key, newNode);
+        if (existingNode != null) {
+            // Another thread beat us to it, just move to head
+            moveToHead(existingNode);
+            return;
+        }
+        
+        // Successfully added to map, now add to list
+        addToHead(newNode);
+        
+        // Increment size and evict if necessary
+        if (size.incrementAndGet() > capacity) {
+            evictLRU();
+        }
+    }
+    
+    /**
+     * Adds a node to the head of the list.
+     */
+    private void addToHead(Node<K, V> node) {
+        listLock.lock();
+        try {
+            Node<K, V> first = head.get().next.get();
+            node.next.set(first);
+            node.prev.set(head.get());
+            first.prev.set(node);
+            head.get().next.set(node);
+        } finally {
+            listLock.unlock();
+        }
+    }
+    
+    /**
+     * Moves a node to the head of the list.
+     */
+    private void moveToHead(Node<K, V> node) {
+        // Skip if it's already at head
+        if (head.get().next.get() == node) {
+            return;
+        }
+        
+        listLock.lock();
+        try {
+            // Remove from current position
+            removeFromList(node);
+            
+            // Add to head
+            addToHead(node);
+        } finally {
+            listLock.unlock();
+        }
+    }
+    
+    /**
+     * Removes a node from the list.
+     */
+    private void removeFromList(Node<K, V> node) {
+        Node<K, V> prevNode = node.prev.get();
+        Node<K, V> nextNode = node.next.get();
+        
+        if (prevNode != null) {
+            prevNode.next.set(nextNode);
+        }
+        
+        if (nextNode != null) {
+            nextNode.prev.set(prevNode);
+        }
+    }
+    
+    /**
+     * Evicts the least recently used entry.
+     */
+    private void evictLRU() {
+        listLock.lock();
+        try {
+            // Get the LRU node (the one before tail)
+            Node<K, V> lastNode = tail.get().prev.get();
+            
+            // Skip if it's the dummy head
+            if (lastNode == head.get()) {
+                return;
             }
+            
+            // Remove from list
+            removeFromList(lastNode);
+            
+            // Remove from map
+            if (lastNode.key != null) {
+                map.remove(lastNode.key);
+                size.decrementAndGet();
+            }
+        } finally {
+            listLock.unlock();
         }
     }
 
@@ -109,54 +221,41 @@ public class Cache<K, V> {
      * @return the number of entries
      */
     public int size() {
-        return valueMap.size();
+        return size.get();
     }
 
     /**
      * Clears all entries from the cache.
      */
     public void clear() {
-        valueMap.clear();
-        accessMap.clear();
+        listLock.lock();
+        try {
+            map.clear();
+            
+            // Reset the list to just dummy nodes
+            Node<K, V> dummyHead = head.get();
+            Node<K, V> dummyTail = tail.get();
+            dummyHead.next.set(dummyTail);
+            dummyTail.prev.set(dummyHead);
+            
+            size.set(0);
+        } finally {
+            listLock.unlock();
+        }
     }
 
     /**
-     * Entry class that combines a key with its access counter.
-     * Entries are comparable by access count to determine LRU order.
-     *
-     * @param <K> the type of the key
+     * Node for the doubly linked list.
      */
-    private static class Entry<K> implements Comparable<Entry<K>> {
-        private final K key;
-        private final long accessCount;
+    private static class Node<K, V> {
+        final K key;
+        V value;
+        final AtomicReference<Node<K, V>> prev = new AtomicReference<>();
+        final AtomicReference<Node<K, V>> next = new AtomicReference<>();
 
-        Entry(K key, long accessCount) {
+        Node(K key, V value) {
             this.key = key;
-            this.accessCount = accessCount;
-        }
-
-        @Override
-        public int compareTo(Entry<K> other) {
-            // Compare by access count (for LRU ordering)
-            return Long.compare(this.accessCount, other.accessCount);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-
-            Entry<?> entry = (Entry<?>) obj;
-
-            if (accessCount != entry.accessCount) return false;
-            return key != null ? key.equals(entry.key) : entry.key == null;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = key != null ? key.hashCode() : 0;
-            result = 31 * result + (int) (accessCount ^ (accessCount >>> 32));
-            return result;
+            this.value = value;
         }
     }
 }

@@ -2,11 +2,13 @@ package pl.symentis.concurrent.actor;
 
 public abstract class ActorRef<T> {
     private final String actorId;
-    private final ActorSystem actorSystem;
 
-    public ActorRef(String actorId, ActorSystem actorSystem) {
+    public ActorRef(String actorId) {
         this.actorId = actorId;
-        this.actorSystem = actorSystem;
+    }
+
+    public String actorId() {
+        return actorId;
     }
 
     public abstract boolean send(T message);

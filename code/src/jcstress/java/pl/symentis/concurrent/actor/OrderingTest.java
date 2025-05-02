@@ -58,7 +58,7 @@ public class OrderingTest {
     public void arbiter(I_Result result) {
         // Give some time for messages to be processed
         try {
-            Thread.sleep(1000);
+            Thread.sleep(100);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
