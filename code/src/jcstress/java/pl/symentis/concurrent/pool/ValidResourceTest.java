@@ -2,7 +2,6 @@
 package pl.symentis.concurrent.pool;
 
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.openjdk.jcstress.annotations.Actor;
 import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.Expect;

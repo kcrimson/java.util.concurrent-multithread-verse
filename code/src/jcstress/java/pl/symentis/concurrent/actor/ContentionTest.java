@@ -15,7 +15,10 @@ import org.openjdk.jcstress.infra.results.I_Result;
  */
 @JCStressTest
 @Outcome(id = "10", expect = Expect.ACCEPTABLE, desc = "All messages processed")
-@Outcome(id = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}, expect = Expect.ACCEPTABLE_INTERESTING, desc = "Some messages still in flight")
+@Outcome(
+        id = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"},
+        expect = Expect.ACCEPTABLE_INTERESTING,
+        desc = "Some messages still in flight")
 @State
 public class ContentionTest {
 
@@ -66,6 +69,5 @@ public class ContentionTest {
 
         // Check the final counter value
         result.r1 = counter;
-
     }
 }

@@ -2,6 +2,7 @@ plugins {
     id("java")
     id("com.diffplug.spotless") version "6.25.0"
     id("io.github.reyerizo.gradle.jcstress") version "0.8.15"
+    id("me.champeau.jmh") version "0.7.3"
 }
 
 repositories {

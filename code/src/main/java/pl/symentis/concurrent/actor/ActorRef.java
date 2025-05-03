@@ -1,3 +1,4 @@
+// Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.actor;
 
 public abstract class ActorRef<T> {

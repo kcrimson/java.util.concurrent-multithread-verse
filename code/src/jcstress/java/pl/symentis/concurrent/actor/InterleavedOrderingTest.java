@@ -1,14 +1,13 @@
 // Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.actor;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.Expect;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
 import org.openjdk.jcstress.infra.results.II_Result;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * ActorSystem message ordering.
@@ -17,10 +16,22 @@ import java.util.concurrent.atomic.AtomicInteger;
  * from another thread.
  */
 @JCStressTest
-@Outcome(id = {"2, 2"}, expect = Expect.ACCEPTABLE, desc = "All messages processed correctly")
-@Outcome(id = {"1, 1"}, expect = Expect.ACCEPTABLE_INTERESTING, desc = "Some messages still in flight")
-@Outcome(id = {"2, 1", "1, 2"}, expect = Expect.ACCEPTABLE_INTERESTING, desc = "Messages processed from one thread")
-@Outcome(id = {"0, 0"}, expect = Expect.FORBIDDEN, desc = "No messages processed")
+@Outcome(
+        id = {"2, 2"},
+        expect = Expect.ACCEPTABLE,
+        desc = "All messages processed correctly")
+@Outcome(
+        id = {"1, 1"},
+        expect = Expect.ACCEPTABLE_INTERESTING,
+        desc = "Some messages still in flight")
+@Outcome(
+        id = {"2, 1", "1, 2"},
+        expect = Expect.ACCEPTABLE_INTERESTING,
+        desc = "Messages processed from one thread")
+@Outcome(
+        id = {"0, 0"},
+        expect = Expect.FORBIDDEN,
+        desc = "No messages processed")
 @State
 public class InterleavedOrderingTest {
 

@@ -22,11 +22,11 @@ public class Cache<K, V> {
     private final Function<K, V> computeFunction;
     private final Map<K, Node<K, V>> map;
     private final AtomicInteger size = new AtomicInteger(0);
-    
+
     // Head and tail of the doubly linked list
     private final AtomicReference<Node<K, V>> head = new AtomicReference<>();
     private final AtomicReference<Node<K, V>> tail = new AtomicReference<>();
-    
+
     // Lock for list structure modifications
     private final ReentrantLock listLock = new ReentrantLock();
 
@@ -43,7 +43,7 @@ public class Cache<K, V> {
         this.capacity = capacity;
         this.computeFunction = computeFunction;
         this.map = new ConcurrentHashMap<>(capacity);
-        
+
         // Initialize with dummy nodes
         Node<K, V> dummyHead = new Node<>(null, null);
         Node<K, V> dummyTail = new Node<>(null, null);
@@ -66,25 +66,25 @@ public class Cache<K, V> {
 
         // Try to get node from the map
         Node<K, V> node = map.get(key);
-        
+
         if (node != null) {
             // Key exists, move to front to mark as recently used
             moveToHead(node);
             return node.value;
         }
-        
+
         // Key not in cache, compute it
         V value = computeFunction.apply(key);
         if (value == null) {
             return null; // Don't cache null values
         }
-        
+
         // Try to add the computed value to the cache
         putValue(key, value);
-        
+
         return value;
     }
-    
+
     /**
      * Puts a key-value pair in the cache.
      *
@@ -96,7 +96,7 @@ public class Cache<K, V> {
         if (key == null || value == null) {
             throw new NullPointerException("Key and value cannot be null");
         }
-        
+
         Node<K, V> oldNode = map.get(key);
         if (oldNode != null) {
             // Update existing entry
@@ -105,12 +105,12 @@ public class Cache<K, V> {
             moveToHead(oldNode);
             return oldValue;
         }
-        
+
         // Add new entry
         putValue(key, value);
         return null;
     }
-    
+
     /**
      * Helper method to add a new entry to the cache.
      */
@@ -125,16 +125,16 @@ public class Cache<K, V> {
             moveToHead(existingNode);
             return;
         }
-        
+
         // Successfully added to map, now add to list
         addToHead(newNode);
-        
+
         // Increment size and evict if necessary
         if (size.incrementAndGet() > capacity) {
             evictLRU();
         }
     }
-    
+
     /**
      * Adds a node to the head of the list.
      */
@@ -150,7 +150,7 @@ public class Cache<K, V> {
             listLock.unlock();
         }
     }
-    
+
     /**
      * Moves a node to the head of the list.
      */
@@ -159,35 +159,35 @@ public class Cache<K, V> {
         if (head.get().next.get() == node) {
             return;
         }
-        
+
         listLock.lock();
         try {
             // Remove from current position
             removeFromList(node);
-            
+
             // Add to head
             addToHead(node);
         } finally {
             listLock.unlock();
         }
     }
-    
+
     /**
      * Removes a node from the list.
      */
     private void removeFromList(Node<K, V> node) {
         Node<K, V> prevNode = node.prev.get();
         Node<K, V> nextNode = node.next.get();
-        
+
         if (prevNode != null) {
             prevNode.next.set(nextNode);
         }
-        
+
         if (nextNode != null) {
             nextNode.prev.set(prevNode);
         }
     }
-    
+
     /**
      * Evicts the least recently used entry.
      */
@@ -196,15 +196,15 @@ public class Cache<K, V> {
         try {
             // Get the LRU node (the one before tail)
             Node<K, V> lastNode = tail.get().prev.get();
-            
+
             // Skip if it's the dummy head
             if (lastNode == head.get()) {
                 return;
             }
-            
+
             // Remove from list
             removeFromList(lastNode);
-            
+
             // Remove from map
             if (lastNode.key != null) {
                 map.remove(lastNode.key);
@@ -231,13 +231,13 @@ public class Cache<K, V> {
         listLock.lock();
         try {
             map.clear();
-            
+
             // Reset the list to just dummy nodes
             Node<K, V> dummyHead = head.get();
             Node<K, V> dummyTail = tail.get();
             dummyHead.next.set(dummyTail);
             dummyTail.prev.set(dummyHead);
-            
+
             size.set(0);
         } finally {
             listLock.unlock();

@@ -1,14 +1,13 @@
 // Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.actor;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.Expect;
 import org.openjdk.jcstress.annotations.JCStressTest;
 import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
 import org.openjdk.jcstress.infra.results.I_Result;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * ActorSystem message ordering within a single actor.
@@ -17,7 +16,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @JCStressTest
 @Outcome(id = "0", expect = Expect.ACCEPTABLE, desc = "No ordering violations detected")
-@Outcome(id = {"1", "2", "3", "4", "5"}, expect = Expect.FORBIDDEN, desc = "Ordering violation detected")
+@Outcome(
+        id = {"1", "2", "3", "4", "5"},
+        expect = Expect.FORBIDDEN,
+        desc = "Ordering violation detected")
 @State
 public class OrderingTest {
 

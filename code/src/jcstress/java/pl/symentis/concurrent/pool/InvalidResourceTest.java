@@ -1,6 +1,7 @@
 // Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.pool;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.openjdk.jcstress.annotations.Actor;
 import org.openjdk.jcstress.annotations.Arbiter;
 import org.openjdk.jcstress.annotations.Expect;
@@ -9,15 +10,19 @@ import org.openjdk.jcstress.annotations.Outcome;
 import org.openjdk.jcstress.annotations.State;
 import org.openjdk.jcstress.infra.results.II_Result;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  * This test verifies that concurrent borrow and release operations
  * maintain the correct pool state.
  */
 @JCStressTest
-@Outcome(id = "2, 1", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released (some were invalidated), pool has min size")
-@Outcome(id = "2, 2", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released (some were invalidated), pool has max size")
+@Outcome(
+        id = "2, 1",
+        expect = Expect.ACCEPTABLE,
+        desc = "Resource was borrowed and released (some were invalidated), pool has min size")
+@Outcome(
+        id = "2, 2",
+        expect = Expect.ACCEPTABLE,
+        desc = "Resource was borrowed and released (some were invalidated), pool has max size")
 @State
 public class InvalidResourceTest {
 

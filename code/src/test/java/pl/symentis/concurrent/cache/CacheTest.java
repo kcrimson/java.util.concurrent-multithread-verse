@@ -1,9 +1,9 @@
+// Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.cache;
 
-import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 class CacheTest {
 
@@ -14,7 +14,7 @@ class CacheTest {
         // when
         cache.put("key1", "value1");
         cache.put("key2", "value2");
-        //then
+        // then
         assertThat(cache.get("key1")).isNull();
         assertThat(cache.get("key2")).isEqualTo("value2");
     }
@@ -30,7 +30,7 @@ class CacheTest {
         cache.get("key1");
         // key3 should replace key2
         cache.put("key3", "value3");
-        //then
+        // then
         assertThat(cache.get("key1")).isEqualTo("value1");
         assertThat(cache.get("key2")).isNull();
         assertThat(cache.get("key3")).isEqualTo("value3");
