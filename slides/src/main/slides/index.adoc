@@ -20,13 +20,28 @@
 
 image::opening-slide.png[background,size=cover]
 
+[role="highlight_title"]
+== concurrency is hard
+
+image::https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWVtZXo4eDhnOTRsazN4ODh2Z2lzYnZ2Ymt5NTJ2eWM0bTlnZjF2eiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKpHfFyh6DWYOKQ/giphy.gif[background]
+
+=== !
+
+I would like to disenchant concurrency +
+
+there is a lot of myths, urban legends and misconceptions +
+
+but with proper abstractions and mental models you can master it
+
 == what is concurrency
 
 Concurrency in computer science refers to the **ability of different parts of a program to execute independently and simultaneously**. +
 
-It enables multiple computations to progress at the same time, either by allowing different parts of a program to be **executed out of order** or simultaneously on multiple processors. +
+=== !
 
-This concept is fundamental to modern computing, where systems need to handle multiple tasks efficiently, respond to various events, and maximize the use of available computing resources. +
+It enables multiple computations to **progress** at the same time, either by allowing different parts of a program to be **executed out of order** or simultaneously on multiple processors. +
+
+=== !
 
 Concurrent programming allows applications to remain responsive while performing time-consuming operations, handle multiple user requests simultaneously, and take **advantage of multi-core processors for improved performance**.
 
@@ -37,6 +52,27 @@ Modern hardware architectures feature multiple processing cores, making concurre
 Applications need to remain responsive while performing complex calculations or I/O operations, which is achieved through concurrent execution.
 In distributed systems and web applications, concurrency enables handling multiple user requests simultaneously, improving scalability and user experience.
 Additionally, certain problems naturally lend themselves to concurrent solutions, such as simulation systems, real-time data processing, and parallel algorithms, where concurrent execution can significantly improve performance and efficiency.
+
+=== why it is so hard?
+
+* software developers don't care about hardware any more (aka cloud computing)
+* the programming model in the programmer’s head that he needs to reason reliably about his program, is much harder than it is for sequential control flow (aka our brains are single threaded)
+* your code doesn't translate to set of instructions that gets executed on the CPU, compilers and CPU can reorder instructions (aka illusion of execution)
+
+=== the promise of formalisms
+
+in a jungle of:
+
+* memory ordering,
+* memory hierarchy,
+* coherence protocols,
+* and compiler optimizations
+
+we need a formal model to reason about concurrent programs
+
+=== !
+
+memory models are contract between programmer and hardware and compiler writer
 
 == Java Memory Model
 
@@ -133,22 +169,104 @@ image::https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWE4amNzcTZ3ZXllY3Q1aHh
 * executors
 * futures
 
-[role="highlight_title"]
-=== barriers
+=== !
 
-image::https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExOGgxbWZuanFuMDFmdGU1Z3BrMXk1NG1uOTUwcTR4ZnB5NXhlZXlueSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/10z1n3YVrZDVrq/giphy.gif[background]
-
-=== show me the code
+as I want to help you to develop a general understanding of how these things work, +
+will not discuss every concurrency primitives in detail +
+will focus on use cases and general principles how to write concurrent code
 
 === object pool
 
-A thread-safe object pool implementation with minimum and maximum capacity. +
-The pool auto-creates objects up to maximum capacity and maintains minimum number of valid objects. +
-Invalid objects are replaced to maintain minimum capacity.
+A thread-safe object pool implementation
+
+* With minimum and maximum capacity
+* The pool auto-creates objects up to maximum capacity and maintains minimum number of valid objects
+* Invalid objects are replaced to maintain minimum capacity
+
+=== properties
+
+* only n threads can access the pool at the same time
+* resource can be borrowed only by single thread at a time
 
 === implementation
 
-Objects are managed using a BlockingQueue and Semaphore to control concurrent access. +
+* Semaphore to control how many threads can access the pool at the same time
+* Queue to store objects
+
+=== !
+
+but, how to make sure it is thread-safe? +
+
+my approach is based on heuristics not on formalisms, +
+results may vary
+
+=== !
+
+* write single-threaded tests first, to verify correctness
+* write multi-threaded jcstress tests, to verify thread-safety
+* write jmh microbenchmarks, to verify performance
+
+=== jcstress
+
+is a experimental framework for testing concurrent programs +
+
+how it works?
+
+it runs your code, multpile times, in multiple threads, and checks if the results are correct
+
+=== WAT?
+
+you design experiments, and jcstress runs them
+
+=== actor
+
+[source,java]
+----
+    // The pool instance to test
+    private final Pool<TestResource> pool = new Pool<>(1, 2, new TestResourceFactory(), new TestResourceValidator());
+
+    // Counter to track successful operations
+    private final AtomicInteger successCounter = new AtomicInteger(0);
+
+    @Actor
+    public void actor1() {
+        try {
+            var resource = pool.borrow();
+            try {
+                resource.work();
+            } finally {
+                if (pool.release(resource)) {
+                    successCounter.incrementAndGet();
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+----
+
+=== arbiter
+
+[source,java]
+----
+    @Arbiter
+    public void arbiter(II_Result result) {
+        result.r1 = successCounter.get();
+        result.r2 = pool.availableCount();
+    }
+----
+
+=== experiments
+
+[source,java]
+----
+@JCStressTest
+@Outcome(id = "4, 1", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released, pool has min size")
+@Outcome(id = "4, 2", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released, pool has max size")
+@State
+public class ValidResourceTest {
+}
+----
 
 === actor model
 

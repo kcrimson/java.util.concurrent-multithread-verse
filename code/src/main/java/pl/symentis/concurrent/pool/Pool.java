@@ -112,7 +112,6 @@ public class Pool<T extends AutoCloseable> {
 
     public void close() {
         closed = true;
-
         // Release all resources
         resources.forEach(r -> {
             try {
