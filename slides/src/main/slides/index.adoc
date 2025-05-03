@@ -270,16 +270,114 @@ public class ValidResourceTest {
 
 === actor model
 
-The Actor Model is a conceptual framework for building concurrent systems where actors serve as the fundamental unit of computation.
+The actor model is a conceptual framework for building concurrent systems where actors serve as the fundamental unit of computation. +
+
 Each actor is an independent entity that processes messages asynchronously through its dedicated mailbox, which acts as a message queue.
-Actors communicate exclusively by sending messages to each other's mailboxes, never sharing state directly.
-When an actor receives a message, it can perform local computations, create new actors, send messages to other actors, or modify its own internal state.
-This message-passing approach naturally enforces isolation and encapsulation, making concurrent systems easier to reason about and less prone to traditional concurrency issues like deadlocks and race conditions.
+
+Actors communicate exclusively by sending messages to each other's mailboxes, never sharing state directly. +
+
+When an actor receives a message, it can perform local computations, create new actors, send messages to other actors, or modify its own internal state. +
+
+This message-passing approach naturally enforces isolation and encapsulation, making concurrent systems easier to reason about and less prone to traditional concurrency issues like deadlocks and race conditions. +
+
 The model achieves concurrency through parallel message processing, where multiple actors can process their respective messages simultaneously without interfering with each other.
+
+=== properties
+
+* Each actor has its own mailbox, which is a queue of messages
+* Actor processes single message at a time
+* Actors are running on shared thread pool, to avoid creating actor per thread
 
 === implementation
 
-Actors are executed on thread pool, and each actor has its own mailbox
+* Actors are executed on a thread pool, using ExecutorService
+* Each actor has its own mailbox implemented as Queue
+* Use AtomicBoolean to signal actor is processing a message
 
+=== !
 
+[plantuml,right]
+----
+@startuml
+title Actor Model - Message Processing with AtomicBoolean Guard
 
+participant "Thread 1" as T1
+participant "Thread 2" as T2
+participant "Actor System" as AS
+participant "Actor Mailbox\n(Queue)" as MB
+participant "Actor" as A
+participant "AtomicBoolean\n(isProcessing)" as AB
+
+note over AB: Initially false
+
+== Thread 1 sends message ==
+T1 -> AS: send(actorId, message1)
+AS -> MB: enqueue(message1)
+AS -> AB: compareAndSet(false, true)
+note right: Returns true - actor wasn't processing
+activate AB
+AS -> AS: submit task to ExecutorService
+AS -> A: receive(message1)
+activate A
+A -> A: process message1
+A -> MB: dequeue()
+note right: Check if more messages
+A -> AB: set(false)
+deactivate AB
+deactivate A
+
+== Thread 2 sends message while Actor is busy ==
+T2 -> AS: send(actorId, message2)
+AS -> MB: enqueue(message2)
+AS -> AB: compareAndSet(false, true)
+note right: Returns false - actor is already processing
+note over AS: No new task submitted\nMessage will be processed\nwhen current task completes
+
+== Actor processes next message from queue ==
+A -> MB: dequeue()
+note right: Found message2
+A -> AB: compareAndSet(false, true)
+note right: Returns true - actor wasn't processing
+activate AB
+A -> A: receive(message2)
+activate A
+A -> A: process message2
+A -> MB: dequeue()
+note right: No more messages
+A -> AB: set(false)
+deactivate AB
+deactivate A
+
+@enduml
+----
+
+=== mapreduce
+
+MapReduce is a programming paradigm designed for processing and generating large datasets in parallel.
+The algorithm consists of two core phases executed in sequence - map and reduce.
+
+=== map phase
+
+During the map phase, input data is partitioned and distributed across multiple worker nodes or threads.
+Each worker transforms its chunk of data by applying a map function that processes individual records.
+The map function emits key-value pairs which are then grouped by key.
+
+=== reduce phase 
+
+In the reduce phase, grouped key-value pairs are processed in parallel by reduce workers.
+Each reducer receives all values associated with a particular key and combines them into a final result.
+Multiple reducers can work simultaneously on different keys, enabling parallel processing.
+
+=== intermediate phase
+
+Between map and reduce phases, the framework performs an important shuffle and sort operation.
+This phase groups and sorts all key-value pairs with the same key from different mappers.
+The sorting ensures reducers receive their input values in a deterministic order.
+
+=== properties
+
+=== implementation
+
+* use ExecutorService to execute map and reduce tasks
+* use Phaser barrier to synchronize map and reduce phases
+* use ConcurrentHashMap to store intermediate results
