@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
 
 /**
  * A simple actor system implementation that allows multiple actors to share the same thread pool
@@ -16,6 +17,7 @@ import java.util.function.Consumer;
  */
 public class ActorSystem {
 
+    private static final Logger LOG = org.slf4j.LoggerFactory.getLogger(ActorSystem.class);
     private final ExecutorService executorService;
     private final Map<String, ActorContext<?>> actors = new ConcurrentHashMap<>();
     private final AtomicBoolean isRunning = new AtomicBoolean(true);
@@ -26,7 +28,8 @@ public class ActorSystem {
      * @param threadCount the number of threads in the pool
      */
     public ActorSystem(int threadCount) {
-        this.executorService = Executors.newFixedThreadPool(threadCount);
+        this.executorService = Executors.newFixedThreadPool(
+                threadCount, Thread.ofPlatform().name("actor-system-", 0).factory());
     }
 
     /**
@@ -78,28 +81,17 @@ public class ActorSystem {
     private <T> void scheduleProcessing(ActorContext<T> actorContext) {
         executorService.submit(() -> {
             try {
-                // Process messages while the actor has messages and the system is running
                 while (isRunning.get() && actorContext.processNextMessage()) {
-                    // Continue processing messages in the same thread
+                    // in other thread some other actor can process messages
                 }
-
-                // If there are no more messages but the actor is still active,
-                // mark it as not processing and check if new messages arrived
                 if (isRunning.get() && actorContext.setProcessing(false)) {
-                    // If new messages arrived while we were setting processing to false,
-                    // schedule processing again
                     if (!actorContext.isEmpty()) {
                         actorContext.setProcessing(true);
                         scheduleProcessing(actorContext);
                     }
                 }
             } catch (Exception e) {
-                // Log the exception but don't let it crash the actor
-                System.err.println(
-                        "Error processing messages for actor " + actorContext.actorId + ": " + e.getMessage());
-                e.printStackTrace();
-
-                // Reset processing state to allow future messages to be processed
+                LOG.error("Error processing messages for actor {}", actorContext.actorId, e);
                 actorContext.setProcessing(false);
             }
         });

@@ -1,3 +1,5 @@
+import com.github.erizo.gradle.JcstressTask
+
 plugins {
     id("java")
     id("com.diffplug.spotless") version "6.25.0"
@@ -10,6 +12,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.slf4j:slf4j-simple:2.0.7")
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
     testImplementation("org.assertj:assertj-core:3.27.3")
     testImplementation("org.awaitility:awaitility:4.3.0")
@@ -23,6 +26,11 @@ tasks.test {
 
 jcstress {
     jcstressDependency = "org.openjdk.jcstress:jcstress-core:0.16"
+    regexp = "pl\\.symentis\\.concurrent\\.pool\\.*"
+}
+
+tasks.build{
+    dependsOn(tasks.jmhClasses)
 }
 
 spotless {

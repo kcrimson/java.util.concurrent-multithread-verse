@@ -4,7 +4,6 @@ package pl.symentis.concurrent.cache;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
@@ -24,8 +23,8 @@ public class Cache<K, V> {
     private final AtomicInteger size = new AtomicInteger(0);
 
     // Head and tail of the doubly linked list
-    private final AtomicReference<Node<K, V>> head = new AtomicReference<>();
-    private final AtomicReference<Node<K, V>> tail = new AtomicReference<>();
+    private final Node<K, V> head;
+    private final Node<K, V> tail;
 
     // Lock for list structure modifications
     private final ReentrantLock listLock = new ReentrantLock();
@@ -47,10 +46,10 @@ public class Cache<K, V> {
         // Initialize with dummy nodes
         Node<K, V> dummyHead = new Node<>(null, null);
         Node<K, V> dummyTail = new Node<>(null, null);
-        dummyHead.next.set(dummyTail);
-        dummyTail.prev.set(dummyHead);
-        head.set(dummyHead);
-        tail.set(dummyTail);
+        dummyHead.next = dummyTail;
+        dummyTail.prev = dummyHead;
+        head = dummyHead;
+        tail = dummyTail;
     }
 
     /**
@@ -141,11 +140,11 @@ public class Cache<K, V> {
     private void addToHead(Node<K, V> node) {
         listLock.lock();
         try {
-            Node<K, V> first = head.get().next.get();
-            node.next.set(first);
-            node.prev.set(head.get());
-            first.prev.set(node);
-            head.get().next.set(node);
+            Node<K, V> first = head.next;
+            node.next = first;
+            node.prev = head;
+            first.prev = node;
+            head.next = node;
         } finally {
             listLock.unlock();
         }
@@ -156,7 +155,7 @@ public class Cache<K, V> {
      */
     private void moveToHead(Node<K, V> node) {
         // Skip if it's already at head
-        if (head.get().next.get() == node) {
+        if (head.next == node) {
             return;
         }
 
@@ -176,15 +175,15 @@ public class Cache<K, V> {
      * Removes a node from the list.
      */
     private void removeFromList(Node<K, V> node) {
-        Node<K, V> prevNode = node.prev.get();
-        Node<K, V> nextNode = node.next.get();
+        Node<K, V> prevNode = node.prev;
+        Node<K, V> nextNode = node.next;
 
         if (prevNode != null) {
-            prevNode.next.set(nextNode);
+            prevNode.next = nextNode;
         }
 
         if (nextNode != null) {
-            nextNode.prev.set(prevNode);
+            nextNode.prev = prevNode;
         }
     }
 
@@ -195,10 +194,10 @@ public class Cache<K, V> {
         listLock.lock();
         try {
             // Get the LRU node (the one before tail)
-            Node<K, V> lastNode = tail.get().prev.get();
+            Node<K, V> lastNode = tail.prev;
 
             // Skip if it's the dummy head
-            if (lastNode == head.get()) {
+            if (lastNode == head) {
                 return;
             }
 
@@ -233,10 +232,10 @@ public class Cache<K, V> {
             map.clear();
 
             // Reset the list to just dummy nodes
-            Node<K, V> dummyHead = head.get();
-            Node<K, V> dummyTail = tail.get();
-            dummyHead.next.set(dummyTail);
-            dummyTail.prev.set(dummyHead);
+            Node<K, V> dummyHead = head;
+            Node<K, V> dummyTail = tail;
+            dummyHead.next = dummyTail;
+            dummyTail.prev = dummyHead;
 
             size.set(0);
         } finally {
@@ -250,8 +249,8 @@ public class Cache<K, V> {
     private static class Node<K, V> {
         final K key;
         V value;
-        final AtomicReference<Node<K, V>> prev = new AtomicReference<>();
-        final AtomicReference<Node<K, V>> next = new AtomicReference<>();
+        Node<K, V> prev;
+        Node<K, V> next;
 
         Node(K key, V value) {
             this.key = key;

@@ -18,7 +18,18 @@
 
 == !
 
-image::opening-slide.png[background,size=cover]
+image::opening-slide.png[background,size=contain]
+
+== about me
+
+Neo4j (a graph database) senior staff engineer +
+database benchmarking team lead
+
+over 20 years with JVM, +
+since early days of no native threads and, +
+no JIT and slow as hell GC
+
+speaker, coder, architect
 
 [role="highlight_title"]
 == concurrency is hard
@@ -33,25 +44,71 @@ there is a lot of myths, urban legends and misconceptions +
 
 but with proper abstractions and mental models you can master it
 
+
+=== choose path
+
+<<what is concurrency,Be gentle, Jarek>> +
+<<java.util.concurrent, Take no prisoners, Jarek>>
+
 == what is concurrency
 
-Concurrency in computer science refers to the **ability of different parts of a program to execute independently and simultaneously**. +
+Concurrency in computer science refers to the +
+**ability of different parts of a program to execute independently and simultaneously**.
 
 === !
 
-It enables multiple computations to **progress** at the same time, either by allowing different parts of a program to be **executed out of order** or simultaneously on multiple processors. +
+It enables multiple computations to +
+**progress at the same time**, +
+either by allowing different parts of a program to be +
+**executed out of order** +
+or +
+**simultaneously on multiple processors**
 
-=== !
+[role="highlight_title"]
+=== concurrency
 
-Concurrent programming allows applications to remain responsive while performing time-consuming operations, handle multiple user requests simultaneously, and take **advantage of multi-core processors for improved performance**.
+image::https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjJxcWoycmRoZGF2eW16czQ3cGk2dWE2azRpNnF1ZGgxN3p6MXJxbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/6SjdlWVipON0Y/giphy.gif[background]
+
+[role="highlight_title"]
+=== parallelism
+
+image::https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnZyb3huZWZycG5pb3M1b3dhYTZjMDBpbHNtaDhva21vNmx5bDFiZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Tes85ZPBUenwLR05o8/giphy.gif[background,size=cover]
 
 == why concurrency matters
 
-Concurrency has become increasingly important in modern software development for several reasons.
-Modern hardware architectures feature multiple processing cores, making concurrent programming essential for utilizing the full potential of available computing resources.
-Applications need to remain responsive while performing complex calculations or I/O operations, which is achieved through concurrent execution.
-In distributed systems and web applications, concurrency enables handling multiple user requests simultaneously, improving scalability and user experience.
-Additionally, certain problems naturally lend themselves to concurrent solutions, such as simulation systems, real-time data processing, and parallel algorithms, where concurrent execution can significantly improve performance and efficiency.
+[quote,,Herb Sutter]
+There are two major reasons for which concurrency, especially multithreading, is already used in mainstream software. +
+The first is to logically separate naturally independent control flows; for example, in a database replication server
+I designed it was natural to put each replication session on its own thread, because each session worked completely
+independently of any others that might be active (as long as they weren’t working on the same database row).
+
+=== !
+
+[quote,,Herb Sutter]
+The second and less common reason to write concurrent code in the past has been for performance,
+either to scalably take advantage of multiple physical CPUs or to easily take advantage of latency in other parts of the application; in my
+database replication server, this factor applied as well and the separate threads were able to scale well on multiple CPUs as our server
+handled more and more concurrent replication sessions with many other servers
+
+=== !
+
+https://www.cs.utexas.edu/~lin/cs380p/Free_Lunch.pdf[The Free Lunch Is Over: A Fundamental Turn Toward Concurrency in Software]
+
+https://herbsutter.com/welcome-to-the-jungle/[
+Welcome to the Jungle Or, A Heterogeneous Supercomputer in Every Pocket]
+
+=== concurrency is hard
+
+[quote,,Herb Sutter]
+Probably the greatest cost of concurrency is that concurrency really is hard: The programming model, meaning the model in the programmer’s
+head that he needs to reason reliably about his program, is much harder than it is for sequential control flow.
+
+=== !
+
+[quote,,Herb Sutter]
+Everybody who learns concurrency thinks they understand it, ends up finding mysterious races they thought weren’t possible, and discovers
+that they didn’t actually understand it yet after all. As the developer learns to reason about concurrency, they find that usually those races can
+be caught by reasonable in-house testing, and they reach a new plateau of knowledge and comfort
 
 === why it is so hard?
 
@@ -81,7 +138,7 @@ once you understand it, +
 you loose ability to explain it to others +
 (aka Aleksey Shipilëv paradox)
 
-=== !
+=== Java Memory Model
 
 sequentially consistency in absence of data races
 
@@ -91,6 +148,10 @@ transitive closure (from set theory) of:
 * synchronization order
 * synchronizes-with relation
 * happens-before relation
+
+=== !
+
+image::https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnYwZDhhZWVzc3g4Nzh3bG5kMWlzOHowb3EyMGYxMzlybGNid2N2aiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26xBI73gWquCBBCDe/giphy.gif[background]
 
 === !
 
@@ -134,26 +195,43 @@ few important takeaways
 * people designing these things are not the best one to explain it
 * multicore CPUs are distributed systems on a chip
 
+[role="highlight_title"]
 == happens before relation
 
+image::https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExZnViY2gxc2Q3M2Y3MmMyb2hhdW1iMWw2MWk4aDI0azdtOWs0Y2doNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/AROZBEIVlt6vu/giphy.gif[background]
+
+=== !
+
 When we say "A happens before B" +
-it means that all *actions* and *memory changes* +
+it means that *all actions* and *memory changes* +
 in A are guaranteed to be visible to B
 
 === !
 
-If thread 1 writes to a variable and thread 2 reads it later, without proper "happens before" relationship, thread 2 might see an old/stale value
+If thread 1 writes to a variable and thread 2 reads it later, +
+without proper "happens before" relationship, +
+thread 2 might see an old/stale value
+
+=== safe publication
+
+in other words
+
+[quote,Safe Publication and Safe Initialization in Java,Aleksey Shipilёv]
+Safe publication differs from a regular publication on one crucial point. Safe publication makes all the values written before the publication visible to all readers that observed the published object. It is a great simplification over the JMM rules of engagement with regards to actions, orders and such.
 
 === !
 
-This is why we can't just use regular variables shared between threads - they don't establish "happens before" and are not immune to hardware optimizations and memory ordering for your CPU
+This is why we can't just use regular variables shared between threads +
+as read and write actions on these variables don't establish "happens before" +
+and are not immune to hardware optimizations and memory ordering for your CPU
 
 === !
 
 * Java Memory Model defines pairs of actions that establish "happens before" relationship
-** volatile write followed by volatile read
+** volatile read followed by volatile write
 ** synchronized enter and exit
 ** lock acquire and release
+** and many more
 
 [role="highlight_title"]
 == java.util.concurrent
@@ -161,6 +239,8 @@ This is why we can't just use regular variables shared between threads - they do
 image::https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWE4amNzcTZ3ZXllY3Q1aHhuNjhhN2ZhdXhpZGE5MDY5c2QxajltcCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Yxoeu3U5wVYVG/giphy.gif[background]
 
 == java.util.concurrent
+
+this package is like a box of Lego blocks
 
 * locks
 * queues
@@ -174,6 +254,33 @@ image::https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbWE4amNzcTZ3ZXllY3Q1aHh
 as I want to help you to develop a general understanding of how these things work, +
 will not discuss every concurrency primitives in detail +
 will focus on use cases and general principles how to write concurrent code
+
+=== IMPORTANT
+
+javadocs will point out which **pairs of actions** +
+in these objects establish "happens before" relationship, +
+memory effects of other operations are not guaranteed +
+to be visible to other threads
+
+=== !
+
+[quote,Javadocs,ConcurrentLinkedDeque]
+Memory consistency effects: As with other concurrent collections, actions in a thread prior to placing an object into a ConcurrentLinkedDeque happen-before actions subsequent to the access or removal of that element from the ConcurrentLinkedDeque in another thread.
+
+[quote,Javadocs,ConcurrentHashMap]
+More formally, an update operation for a given key bears a happens-before relation with any (non-null) retrieval for that key reporting the updated value.)
+
+=== !
+
+image::https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHJiM2xqNzJsNjZ5NHc4eHpxdnRneDZhd2NyZmJhM3J3c2xmMHZ3NSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/T6B1Wjv30LqEo93VSa/giphy.gif[background]
+
+=== examples
+
+<<object pool,Object pool>> +
+<<actor model,Actor model>> +
+<<mapreduce, MapReduce>> +
+<<pubsub,PubSub>> +
+<<cache,Cache>> (under construction)
 
 === object pool
 
@@ -190,8 +297,8 @@ A thread-safe object pool implementation
 
 === implementation
 
-* Semaphore to control how many threads can access the pool at the same time
-* Queue to store objects
+* `Semaphore` to control how many threads can access the pool at the same time
+* `Queue` to store objects
 
 === !
 
@@ -206,79 +313,153 @@ results may vary
 * write multi-threaded jcstress tests, to verify thread-safety
 * write jmh microbenchmarks, to verify performance
 
-=== jcstress
+=== expected behaviors?
+
+* identify shared state
+* identify actions that access state and can be performed from multiple threads
+* find out what happens before relationship is established between these actions
+* write down expected behaviors for each pair of actions, for both cases when A happens before B and when B happens before A
+
+[role="highlight_title"]
+=== !
+
+image::https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExeGdhaDZkcHgxa3VyNndoMDJqMTRrNTlzZmExZGpremFnamgzMGNjNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/uN5iwZB2v2dH2/giphy.gif[background,size=contain]
+
+=== jcstress?
 
 is a experimental framework for testing concurrent programs +
 
 how it works?
 
-it runs your code, multpile times, in multiple threads, and checks if the results are correct
+it runs your code, +
+multpile times, +
+in multiple threads, +
+testing different scenarios, +
+and JVM modes+optimizations, +
+and checks if the results satisfy your expectations
 
 === WAT?
 
-you design experiments, and jcstress runs them
+in simple words, +
+you design experiments, +
+and jcstress runs them, +
+trying to break your code +
+and your assumptions about memory model
 
-=== actor
+=== !
 
 [source,java]
 ----
-    // The pool instance to test
-    private final Pool<TestResource> pool = new Pool<>(1, 2, new TestResourceFactory(), new TestResourceValidator());
+    private final BlockingQueue<T> resources;
+    private final Semaphore semaphore;
 
-    // Counter to track successful operations
-    private final AtomicInteger successCounter = new AtomicInteger(0);
+    public T borrow() throws InterruptedException {
+        if (closed) {
+            throw new IllegalStateException("Pool is closed");
+        }
+        semaphore.acquire(); <1>
+        T resource = resources.poll(); <2>
 
-    @Actor
-    public void actor1() {
+        // If the queue is empty but semaphore allowed access, create a new resource
+        if (resource == null) {
+            resource = factory.create();
+        }
+
+        return resource;
+    }
+----
+<1> happens before with semaphore.release()
+<2> happens before with resources.offer()
+
+=== !
+
+[source,java]
+----
+    public boolean release(T resource) {
         try {
-            var resource = pool.borrow();
-            try {
-                resource.work();
-            } finally {
-                if (pool.release(resource)) {
-                    successCounter.incrementAndGet();
+            if (validator.isValid(resource)) {
+                resources.offer(resource); <2>
+                return true;
+            } else {
+                if (availableCount() < minCapacity) {
+                    resources.offer(factory.create());<2>
                 }
+                return false;
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        } finally {
+            semaphore.release(); <1>
         }
     }
 ----
+<1> happens before with semaphore.acquire()
+<2> happens before with resources.offer()
 
-=== arbiter
+=== !
 
-[source,java]
+|===
+|Thread 1 (borrow) | Thread 2 (release)
+
+| semaphore.acquire()
+| resources.offer()
+
+|resources.poll()
+|semaphore.release()
+
+|===
+
+=== jcstress actor
+
+[,java]
 ----
-    @Arbiter
-    public void arbiter(II_Result result) {
-        result.r1 = successCounter.get();
-        result.r2 = pool.availableCount();
-    }
+include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=24,27,29..43]
 ----
 
-=== experiments
+=== jcstress arbiter
 
-[source,java]
+[,java]
 ----
-@JCStressTest
-@Outcome(id = "4, 1", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released, pool has min size")
-@Outcome(id = "4, 2", expect = Expect.ACCEPTABLE, desc = "Resource was borrowed and released, pool has max size")
-@State
-public class ValidResourceTest {
-}
+include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=93..97]
 ----
+
+=== jcstress outcomes
+
+[source,java,]
+----
+include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=17..21]
+----
+
+=== worth noting
+
+* sometimes choosing right concurrency primitive is key, `Semphore` solves most of challenges,
+* using `Queue` doesn't require maintaining state of resource
+* look for symmetries when invoking happens-before actions,
 
 === actor model
 
-The actor model is a conceptual framework for building concurrent systems where actors serve as the fundamental unit of computation. +
+The actor model is a conceptual framework for building concurrent systems where actors serve as the fundamental unit of computation.
 
 Each actor is an independent entity that processes messages asynchronously through its dedicated mailbox, which acts as a message queue.
 
-Actors communicate exclusively by sending messages to each other's mailboxes, never sharing state directly. +
+Actors communicate exclusively by sending messages to each other's mailboxes, never sharing state directly.
 
-When an actor receives a message, it can perform local computations, create new actors, send messages to other actors, or modify its own internal state. +
+=== !
 
-This message-passing approach naturally enforces isolation and encapsulation, making concurrent systems easier to reason about and less prone to traditional concurrency issues like deadlocks and race conditions. +
+When an actor receives a message, it can:
+
+* perform local computations
+* create new actors
+* send messages to other actors
+* modify its own internal state
+
+=== !
+
+This message-passing approach naturally enforces isolation and encapsulation, making concurrent systems:
+
+* easier to reason about
+* less prone to deadlocks
+* less prone to race conditions
+
+=== !
 
 The model achieves concurrency through parallel message processing, where multiple actors can process their respective messages simultaneously without interfering with each other.
 
@@ -290,9 +471,9 @@ The model achieves concurrency through parallel message processing, where multip
 
 === implementation
 
-* Actors are executed on a thread pool, using ExecutorService
-* Each actor has its own mailbox implemented as Queue
-* Use AtomicBoolean to signal actor is processing a message
+* Actors are executed on a thread pool, using `ExecutorService`
+* Each actor has its own mailbox implemented as `Queue`
+* Use `AtomicBoolean` to signal actor is processing a message
 
 === !
 
@@ -351,6 +532,24 @@ deactivate A
 @enduml
 ----
 
+=== free beer if you spot problems
+
+[,java]
+----
+include::../code/src/main/java/pl/symentis/concurrent/actor/ActorSystem.java[lines=81..96]
+----
+
+=== benchmarking concurrent code
+
+**is even harder**
+
+=== worth noting
+
+* finding concurrency problems is fun ;)
+* atomic variables can be used to synchronize access to shared resources, they are foundation of lock-free algorithms
+* choice of `Queue` implementation can impact performance and scalability, e.g. `ConcurrentLinkedQueue` is lock-free, but `ArrayBlockingQueue` is not
+* concurrency primitives are also useful when designing tests and benchmarks, like use of `Exchanger` in `ActorSystemBenchmark`
+
 === mapreduce
 
 MapReduce is a programming paradigm designed for processing and generating large datasets in parallel.
@@ -358,26 +557,121 @@ The algorithm consists of two core phases executed in sequence - map and reduce.
 
 === map phase
 
-During the map phase, input data is partitioned and distributed across multiple worker nodes or threads.
-Each worker transforms its chunk of data by applying a map function that processes individual records.
+During the map phase, input data is partitioned and distributed across multiple worker nodes or threads. +
+Each worker transforms its chunk of data by applying a map function that processes individual records. +
 The map function emits key-value pairs which are then grouped by key.
 
 === reduce phase 
 
-In the reduce phase, grouped key-value pairs are processed in parallel by reduce workers.
-Each reducer receives all values associated with a particular key and combines them into a final result.
+In the reduce phase, grouped key-value pairs are processed in parallel by reduce workers. +
+Each reducer receives all values associated with a particular key and combines them into a final result. +
 Multiple reducers can work simultaneously on different keys, enabling parallel processing.
 
 === intermediate phase
 
-Between map and reduce phases, the framework performs an important shuffle and sort operation.
-This phase groups and sorts all key-value pairs with the same key from different mappers.
+Between map and reduce phases, the framework performs an important shuffle and sort operation. +
+This phase groups and sorts all key-value pairs with the same key from different mappers. +
 The sorting ensures reducers receive their input values in a deterministic order.
+
+(for simplicity will skip this one)
 
 === properties
 
+* input data is partitioned and distributed across multiple workers
+* reducing phase needs to wait for mapping phase to complete
+* mapping and reducing are executed in parallel
+* intermediate results are stored in memory
+
 === implementation
 
-* use ExecutorService to execute map and reduce tasks
-* use Phaser barrier to synchronize map and reduce phases
-* use ConcurrentHashMap to store intermediate results
+* use `ExecutorService` to execute map and reduce tasks
+* use `Phaser` barrier to synchronize map and reduce phases
+* use `ConcurrentHashMap` to store intermediate results
+
+=== !
+
+[,java]
+----
+include::../code/src/main/java/pl/symentis/concurrent/mapreduce/ParallelMapReduce.java[lines=45..78]
+----
+
+=== worth noting
+
+* `CyclicBarrier` and `CountDownLatch` are not suitable for this use case, because we don't know how many entries we will process
+* `Phaser` is a better choice because it allows us to wait for multiple phases to complete
+* `Phaser` can for a DAG (direct acyclic graph) of tasks, where each task can depend on the completion of previous tasks
+* `compute*` operations in `ConcurrentHashMap` are performed atomically. Some attempted update operations on this map by other threads may be blocked while computation is in progress, so the computation should be short and simple, and must not attempt to update any other mappings of this map.
+
+== pubsub
+
+A pubsub is a messaging system that allows publishers to send messages to one or more subscribers. +
+
+Subscribers can subscribe to specific topics or patterns, and the pubsub system ensures that messages are delivered to the correct subscribers. +
+
+Let's implement in memory pubsub, modeled after Kafka, with consumer groups and offset tracking.
+
+=== properties
+
+* messages are published to a topic
+* subscribers can subscribe to a topic
+* subscribers can receive messages from a topic
+* subscribers track their offset in the topic
+
+=== implementation
+
+* use ConcurrentHashMap to store topics
+* use StampedLock to synchronize access to messages
+
+=== happens before
+
+[,java]
+----
+include::../code/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=57..64]
+----
+
+changes made to `messages` are visible to other threads, +
+this is effect of happens before relation +
+but it's not guaranteed that changes made to `messages` +
+are visible to other threads which don't form happens before relation
+
+=== !
+
+[,java]
+----
+include::../code/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=70..106]
+----
+
+=== worth noting
+
+* StampedLock is not reentrant
+* StampedLock can be used to implement optimistic locking
+* StampedLock read lock can be upgraded to write lock
+* StampedLock is harder to use than ReentrantLock, there is an ongoing debate about its performance
+
+== summary
+
+* concurrency is hard, but it's not impossible with right tools and mindset
+* java.util.concurrent is like Lego blocks for concurrent programming
+* formalisms are important, but in everyday work you need to have a way to verify your code and understanding of formal models
+
+[role="highlight_title"]
+== thank you
+
+image::https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDY0Y29rYm40NnB2OG9pemtqaWxmejR6ZXhpdTZhcmtydDZxY3k2biZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XBWrLAZricVcBwL8r4/giphy.gif[background]
+
+== cache
+
+A cache implementation that uses LRU (Least Recently Used) eviction policy.
+When an entry is not found in the cache, it can automatically load it from the backing store.
+
+=== properties
+
+* uses a non-blocking approach with fine-grained locking for optimal performance under high contention
+* doesn't use background threads for eviction, rather uses piggy-backing on put/get operations
+
+=== implementation
+
+* `ConcurrentHashMap` to store entries
+* double-linked list to store entries in the order of their last access, implemented using `AtomicReference`
+* `ReentractLock` to synchronize access to the cache
+

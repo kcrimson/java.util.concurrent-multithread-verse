@@ -55,7 +55,6 @@ public class PubSub {
          * Uses a write lock to ensure exclusive access while adding the message.
          */
         void publish(Message message) {
-            // Acquire write lock
             long stamp = lock.writeLock();
             try {
                 messages.add(message);
@@ -70,7 +69,6 @@ public class PubSub {
          */
         List<Message> getMessages(String consumerGroup, int maxMessages) {
             ConsumerGroup group = getOrCreateConsumerGroup(consumerGroup);
-
             // Try optimistic read first
             long stamp = lock.tryOptimisticRead();
             int currentOffset = group.getCurrentOffset();

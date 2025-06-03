@@ -34,7 +34,7 @@ public class WordCount {
             try {
                 Stopwords stopwords = (Stopwords) stopwordsClass
                         .getMethod("from", InputStream.class)
-                        .invoke(stopwordsClass, WordCount.class.getResourceAsStream("stopwords_en.txt"));
+                        .invoke(stopwordsClass, WordCount.class.getResourceAsStream("/stopwords_en.txt"));
                 return new WordCount(stopwords);
             } catch (IllegalAccessException
                     | IllegalArgumentException

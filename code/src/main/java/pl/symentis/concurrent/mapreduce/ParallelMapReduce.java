@@ -59,11 +59,8 @@ public class ParallelMapReduce implements MapReduce {
 
         while (input.hasNext()) {
             In in = input.next();
-
             phaser.register();
-
             executorService.submit(new MapperPhase<>(in, mapper, map, phaser));
-
             tasksPerPhaser++;
             if (tasksPerPhaser >= phaserMaxTasks) {
                 phaser = new Phaser(rootPhaser);
