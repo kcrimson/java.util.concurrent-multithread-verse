@@ -475,59 +475,62 @@ The model achieves concurrency through parallel message processing, where multip
 
 === !
 
-[plantuml,right]
+[mermaid,format=svg]
 ----
-@startuml
-title Actor Model - Message Processing with AtomicBoolean Guard
+%%{init: {'theme': 'dark'}}%%
+sequenceDiagram
+    participant T1 as Thread 1
+    participant T2 as Thread 2
+    participant AS as Actor System
+    participant MB as Mailbox (Queue)
+    participant A as Actor
+    participant AB as AtomicBoolean
 
-participant "Thread 1" as T1
-participant "Thread 2" as T2
-participant "Actor System" as AS
-participant "Actor Mailbox\n(Queue)" as MB
-participant "Actor" as A
-participant "AtomicBoolean\n(isProcessing)" as AB
+    Note over AB: Initially false
 
-note over AB: Initially false
+    rect rgb(50, 50, 120)
+        Note over T1,AB: Thread 1 sends message
+        T1->>AS: send(actorId, message1)
+        AS->>MB: enqueue(message1)
+        AS->>AB: compareAndSet(false, true)
+        Note right of AB: Returns true
+        activate AB
+        AS->>AS: submit to ExecutorService
+        AS->>A: receive(message1)
+        activate A
+        A->>A: process message1
+        A->>MB: dequeue()
+        Note right of MB: Check for more messages
+        A->>AB: set(false)
+        deactivate AB
+        deactivate A
+    end
 
-== Thread 1 sends message ==
-T1 -> AS: send(actorId, message1)
-AS -> MB: enqueue(message1)
-AS -> AB: compareAndSet(false, true)
-note right: Returns true - actor wasn't processing
-activate AB
-AS -> AS: submit task to ExecutorService
-AS -> A: receive(message1)
-activate A
-A -> A: process message1
-A -> MB: dequeue()
-note right: Check if more messages
-A -> AB: set(false)
-deactivate AB
-deactivate A
+    rect rgb(120, 50, 50)
+        Note over T2,AB: Thread 2 sends while Actor is busy
+        T2->>AS: send(actorId, message2)
+        AS->>MB: enqueue(message2)
+        AS->>AB: compareAndSet(false, true)
+        Note right of AB: Returns false — not submitted
+        Note over AS: Message queued, no new task submitted
+    end
 
-== Thread 2 sends message while Actor is busy ==
-T2 -> AS: send(actorId, message2)
-AS -> MB: enqueue(message2)
-AS -> AB: compareAndSet(false, true)
-note right: Returns false - actor is already processing
-note over AS: No new task submitted\nMessage will be processed\nwhen current task completes
-
-== Actor processes next message from queue ==
-A -> MB: dequeue()
-note right: Found message2
-A -> AB: compareAndSet(false, true)
-note right: Returns true - actor wasn't processing
-activate AB
-A -> A: receive(message2)
-activate A
-A -> A: process message2
-A -> MB: dequeue()
-note right: No more messages
-A -> AB: set(false)
-deactivate AB
-deactivate A
-
-@enduml
+    rect rgb(50, 100, 50)
+        Note over A,AB: Actor processes next message
+        A->>MB: dequeue()
+        Note right of MB: Found message2
+        A->>AB: compareAndSet(false, true)
+        Note right of AB: Returns true
+        activate AB
+        A->>A: receive(message2)
+        activate A
+        A->>A: process message2
+        A->>MB: dequeue()
+        Note right of MB: No more messages
+        A->>AB: set(false)
+        deactivate AB
+        deactivate A
+    end
 ----
 
 === free beer if you spot problems

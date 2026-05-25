@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+MMDC_PATH = `mise which mmdc`.strip
+
 BUILD_CMD = [
   "mkdir -p build/slides",
   "bundle exec asciidoctor" \
@@ -7,7 +9,8 @@ BUILD_CMD = [
     " -r asciidoctor-diagram" \
     " -b revealjs" \
     " -a revealjsdir=https://cdn.jsdelivr.net/npm/reveal.js@5.1.0" \
-    " -a puppeteer-config=#{Dir.pwd}/slides/puppeteer-config.json" \
+    " -a mermaid-puppeteer-config=#{Dir.pwd}/slides/puppeteer-config.json" \
+    " -a mmdc=#{MMDC_PATH}" \
     " -a code-dir=#{Dir.pwd}/code" \
     " -a source-highlighter=highlightjs" \
     " -D build/slides" \
