@@ -1,0 +1,15 @@
+name: Publish presentation
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: symentispl/presentation-actions/.github/workflows/build-presentation.yml@master
+    with:
+      slug: java.util.concurrent-multithread-verse
+    secrets:
+      R2_ACCOUNT_ID:        ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
