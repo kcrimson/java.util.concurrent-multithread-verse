@@ -278,7 +278,7 @@ image::https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHJiM2xqNzJsNjZ5NHc4eHp
 <<actor model,Actor model>> +
 <<mapreduce, MapReduce>> +
 <<pubsub,PubSub>> +
-<<cache,Cache>> (under construction)
+<<cache,Cache>>
 
 === object pool
 
@@ -646,17 +646,6 @@ include::{code-dir}/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[line
 * StampedLock read lock can be upgraded to write lock
 * StampedLock is harder to use than ReentrantLock, there is an ongoing debate about its performance
 
-== summary
-
-* concurrency is hard, but it's not impossible with right tools and mindset
-* java.util.concurrent is like Lego blocks for concurrent programming
-* formalisms are important, but in everyday work you need to have a way to verify your code and understanding of formal models
-
-[role="highlight_title"]
-== thank you
-
-image::https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDY0Y29rYm40NnB2OG9pemtqaWxmejR6ZXhpdTZhcmtydDZxY3k2biZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XBWrLAZricVcBwL8r4/giphy.gif[background]
-
 == cache
 
 A cache implementation that uses LRU (Least Recently Used) eviction policy.
@@ -672,4 +661,15 @@ When an entry is not found in the cache, it can automatically load it from the b
 * `ConcurrentHashMap` to store entries
 * double-linked list to store entries in the order of their last access, implemented using `AtomicReference`
 * `ReentractLock` to synchronize access to the cache
+
+== summary
+
+* concurrency is hard, but it's not impossible with right tools and mindset
+* java.util.concurrent is like Lego blocks for concurrent programming
+* formalisms are important, but in everyday work you need to have a way to verify your code and understanding of formal models
+
+[role="highlight_title"]
+== thank you
+
+image::https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMDY0Y29rYm40NnB2OG9pemtqaWxmejR6ZXhpdTZhcmtydDZxY3k2biZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XBWrLAZricVcBwL8r4/giphy.gif[background]
 
