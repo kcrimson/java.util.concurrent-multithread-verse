@@ -5,10 +5,19 @@ plugins {
     id("com.diffplug.spotless") version "6.25.0"
     id("io.github.reyerizo.gradle.jcstress") version "0.8.15"
     id("me.champeau.jmh") version "0.7.3"
+    id("org.pastalab.fray.gradle") version "0.8.5"
 }
 
 repositories {
     mavenCentral()
+}
+
+val fray by sourceSets.creating {
+    java {
+        srcDir("src/fray/java")
+    }
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += sourceSets.main.get().output
 }
 
 dependencies {
@@ -17,6 +26,18 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.3")
     testImplementation("org.awaitility:awaitility:4.3.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    "frayImplementation"("org.pastalab.fray:fray-junit:0.8.5")
+    "frayImplementation"("org.junit.jupiter:junit-jupiter:5.12.2")
+    "frayImplementation"("org.assertj:assertj-core:3.27.3")
+    "frayRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+}
+
+afterEvaluate {
+    tasks.named<Test>("frayTest") {
+        testClassesDirs = sourceSets["fray"].output.classesDirs
+        classpath = sourceSets["fray"].runtimeClasspath
+    }
 }
 
 tasks.test {

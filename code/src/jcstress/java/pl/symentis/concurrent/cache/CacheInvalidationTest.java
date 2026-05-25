@@ -1,3 +1,4 @@
+// Copyright © 2025 Symentis.pl (Jarosław Pałka)
 package pl.symentis.concurrent.cache;
 
 import org.openjdk.jcstress.annotations.Actor;
@@ -10,8 +11,14 @@ import org.openjdk.jcstress.infra.results.ZZ_Result;
 
 @JCStressTest
 @Outcome(id = "true, true", expect = Expect.FORBIDDEN, desc = "Both keys have expected value")
-@Outcome(id = "true, false", expect = Expect.ACCEPTABLE, desc = "First key has expected value, second key is invalid (null)")
-@Outcome(id = "false, true", expect = Expect.ACCEPTABLE, desc = "Second key has expected value, first key is invalid (null)")
+@Outcome(
+        id = "true, false",
+        expect = Expect.ACCEPTABLE,
+        desc = "First key has expected value, second key is invalid (null)")
+@Outcome(
+        id = "false, true",
+        expect = Expect.ACCEPTABLE,
+        desc = "Second key has expected value, first key is invalid (null)")
 @Outcome(id = "false, false", expect = Expect.FORBIDDEN, desc = "Both keys have unexpected value")
 @State
 public class CacheInvalidationTest {
@@ -33,5 +40,4 @@ public class CacheInvalidationTest {
         result.r1 = "value0".equals(cache.get("key0"));
         result.r2 = "value1".equals(cache.get("key1"));
     }
-
 }
