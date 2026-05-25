@@ -1,0 +1,35 @@
+name: Build Slides
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y graphviz chromium-browser
+
+      - name: Install dependencies
+        run: mise run install
+
+      - name: Build slides
+        run: mise run build
+
+      - name: Upload slides artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slides
+          path: build/slides/

@@ -1,3 +1,3 @@
 rootProject.name = "slides-bootstrap"
-include("slides")
 include("code")
+// slides project now built via mise (asciidoctor-revealjs Ruby gem)

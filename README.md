@@ -1,56 +1,63 @@
 # Asciidoctor RevealJS Slides
 
-This repository contains presentation slides created using Asciidoctor RevealJS. The slides are located in the `slides` submodule of this project and are built using Gradle.
+Presentation slides built with [Asciidoctor RevealJS](https://docs.asciidoctor.org/reveal.js-converter/latest/), managed by [mise](https://mise.jdx.dev/).
+
+## Prerequisites
+
+- [mise](https://mise.jdx.dev/getting-started.html) — manages Ruby, Java, and tasks
+- [Graphviz](https://graphviz.org/download/) — for diagram support (`dot` must be on PATH)
+
+Ruby and Java versions are defined in `.mise.toml` and installed automatically by mise.
 
 ## Getting Started
 
-### Prerequisites
-
-- [Java JDK](https://adoptopenjdk.net/) (8 or newer)
-- [Gradle](https://gradle.org/install/) (included as wrapper in the project)
-
-### Setup
-
-1. Clone this repository:
-
 ```bash
 git clone https://github.com/yourusername/yourrepository.git
+cd slides-bootstrap
+mise install        # install Ruby and Java
+mise run install    # install Ruby gems
 ```
 
-2. Navigate to the slides directory:
+## Tasks
 
-```bash
-cd slides
+| Command | Description |
+|---|---|
+| `mise run build` | Build slides → `build/slides/index.html` |
+| `mise run serve` | Build, serve at http://localhost:4000, live reload |
+| `mise run clean` | Remove `build/slides/` |
+| `mise run build-code` | Build the `code/` Java subproject |
+| `mise run test-code` | Test the `code/` Java subproject |
+| `mise run clean-code` | Clean the `code/` Java subproject |
+
+## Project Structure
+
+```
+slides-bootstrap/
+├── .mise.toml                    # Tool versions and task definitions
+├── Gemfile                       # Ruby gem dependencies
+├── slides/
+│   └── src/
+│       ├── main/
+│       │   ├── slides/
+│       │   │   ├── index.adoc            # Main presentation
+│       │   │   └── revealjs-plugins.js   # Reveal.js plugin config
+│       │   └── resources/
+│       │       ├── css/custom.css        # Custom styles
+│       │       ├── images/               # Slide images
+│       │       └── plugins/copycode/     # CopyCode plugin
+└── code/                         # Java code examples (built via Gradle)
 ```
 
-## Working with Slides
+Build output goes to `build/slides/` (gitignored).
 
-### Directory Structure
+## Creating and Editing Slides
 
-The slides are organized with the following structure:
-
-```
-slides/
-├── src/main/slides/       # Source AsciiDoc files
-├── src/main/resources/    # Resources used in presentations
-└── build/slides/          # Generated HTML presentations
-```
-
-### Creating and Editing Slides
-
-1. Create or edit AsciiDoc files in the `slides/src/main/slides` directory.
-
-2. The main presentation file is `index.adoc`. You can modify this file or create additional AsciiDoc files.
-
-3. Here's a basic template for an AsciiDoc slide:
+Edit `slides/src/main/slides/index.adoc`. Each `==` heading creates a new slide:
 
 ```asciidoc
 = My Presentation Title
-:author: Your Name
-:email: your.email@example.com
-:revealjs_theme: white
+:revealjs_theme: night
 :revealjs_history: true
-:revealjs_transition: slide
 :source-highlighter: highlightjs
 
 == First Slide
@@ -66,93 +73,42 @@ Content for the second slide
 Content for a sub-slide
 ```
 
-### Building Slides
-
-To build the slides using Gradle:
-
-```bash
-./gradlew asciidoctorRevealJs
-```
-
-This will generate the HTML presentation in the `build/slides` directory.
-
-### Viewing Slides
-
-You can view the slides using the built-in live reload server:
-
-```bash
-./gradlew liveReload
-```
-
-This will start a local server and automatically reload the presentation when changes are detected. Open your browser and navigate to `http://localhost:35729` to view the slides.
-
-Alternatively, you can open the generated HTML files directly in your browser:
-
-```bash
-open build/slides/index.html
-```
-
-## Customizing Slides
-
 ### Themes
 
-You can change the theme by setting the `:revealjs_theme:` attribute in your AsciiDoc file. Available themes include:
-- black (default)
-- white
-- league
-- beige
-- sky
-- night
-- serif
-- simple
-- solarized
-- blood
-- moon
+Set `:revealjs_theme:` in your AsciiDoc file. Available themes: `black`, `white`, `league`, `beige`, `sky`, `night`, `serif`, `simple`, `solarized`, `blood`, `moon`.
 
 ### Adding Resources
 
-Place any additional resources (images, CSS, JavaScript) in the `slides/src/main/resources` directory. They will be automatically copied to the output directory during the build process.
-
-### Configuration
-
-The project uses RevealJS version `5.1.0` as specified in the `build.gradle.kts` file. You can modify the configuration in this file to update the RevealJS version or change other build settings.
-
-## Advanced Usage
+Place images, CSS, and JavaScript in `slides/src/main/resources/`. They are copied into the build output automatically.
 
 ### Diagrams
 
-The project includes the Asciidoctor Diagram module (version 2.2.1), which allows you to include various types of diagrams in your slides:
+Graphviz and PlantUML diagrams are supported via [Asciidoctor Diagram](https://docs.asciidoctor.org/diagram-extension/latest/):
 
 ```asciidoc
+[graphviz]
+----
+digraph {
+  A -> B -> C
+}
+----
+
 [plantuml]
 ----
-@startuml
 Alice -> Bob: Hello
-@enduml
 ----
-```
-
-### Custom CSS and JavaScript
-
-You can add custom CSS and JavaScript by placing the files in the `slides/src/main/resources` directory and referencing them in your AsciiDoc file:
-
-```asciidoc
-:customcss: custom.css
-:customjs: custom.js
 ```
 
 ## Continuous Integration
 
-This project uses GitHub Actions to automatically build the slides whenever changes are pushed to the repository. The workflow checks out the code, sets up Java, and runs the Gradle build process.
-
-You can see the build status in the Actions tab of the GitHub repository. The workflow configuration is located in the `.github/workflows/gradle-build.yml` file.
+GitHub Actions builds the slides on every push using `.github/workflows/slides-build.yml`. The built artifact is uploaded as `slides`.
 
 ## Additional Resources
 
 - [Asciidoctor RevealJS Documentation](https://docs.asciidoctor.org/reveal.js-converter/latest/)
 - [RevealJS Documentation](https://revealjs.com/)
 - [AsciiDoc Syntax Quick Reference](https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/)
-- [Gradle Asciidoctor Plugin Documentation](https://asciidoctor.github.io/asciidoctor-gradle-plugin/)
+- [mise Documentation](https://mise.jdx.dev/)
 
 ## License
 
