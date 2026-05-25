@@ -8,12 +8,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 /**
- * A thread-safe LRU cache implementation using a doubly linked list and hash map.
- * Uses a non-blocking approach with fine-grained locking for optimal performance
- * under high contention.
+ * Thread-safe LRU cache backed by a {@link ConcurrentHashMap} and a doubly-linked list.
  *
- * @param <K> the type of keys maintained by this cache
- * @param <V> the type of values maintained by this cache
+ * <p>Reads use an optimistic lock-free fast path: the map is queried without a lock, then
+ * re-validated under {@code listLock} to prevent a race with concurrent eviction. Writes and
+ * evictions hold {@code listLock} for their entire duration, keeping the map and the list
+ * consistent with each other at all times.
  */
 public class Cache<K, V> {
 
@@ -22,19 +22,11 @@ public class Cache<K, V> {
     private final Map<K, Node<K, V>> map;
     private final AtomicInteger size = new AtomicInteger(0);
 
-    // Head and tail of the doubly linked list
     private final Node<K, V> head;
     private final Node<K, V> tail;
 
-    // Lock for list structure modifications
     private final ReentrantLock listLock = new ReentrantLock();
 
-    /**
-     * Creates a new cache with the specified capacity and compute function.
-     *
-     * @param capacity the maximum number of entries in the cache
-     * @param computeFunction the function to compute a value if it's not present in the cache
-     */
     public Cache(int capacity, Function<K, V> computeFunction) {
         if (capacity <= 0) {
             throw new IllegalArgumentException("Capacity must be positive");
@@ -43,209 +35,148 @@ public class Cache<K, V> {
         this.computeFunction = computeFunction;
         this.map = new ConcurrentHashMap<>(capacity);
 
-        // Initialize with dummy nodes
-        Node<K, V> dummyHead = new Node<>(null, null);
-        Node<K, V> dummyTail = new Node<>(null, null);
-        dummyHead.next = dummyTail;
-        dummyTail.prev = dummyHead;
-        head = dummyHead;
-        tail = dummyTail;
+        head = new Node<>(null, null);
+        tail = new Node<>(null, null);
+        head.next = tail;
+        tail.prev = head;
     }
 
     /**
-     * Gets a value from the cache, computing it if necessary.
+     * Returns the value for {@code key}, computing and caching it on a miss.
      *
-     * @param key the key whose associated value is to be returned
-     * @return the value associated with the key
+     * <p>Uses an optimistic lock-free read: the map lookup races no other operation.
+     * If the node is found, we re-check under {@code listLock} — eviction removes from the
+     * map while holding the lock, so a positive {@code containsKey} under the lock guarantees
+     * the node is still in the list.
      */
     public V get(K key) {
         if (key == null) {
             throw new NullPointerException("Key cannot be null");
         }
 
-        // Try to get node from the map
+        // Optimistic lock-free read
         Node<K, V> node = map.get(key);
-
         if (node != null) {
-            // Key exists, move to front to mark as recently used
-            moveToHead(node);
-            return node.value;
+            listLock.lock();
+            try {
+                // Re-validate: evictLRU removes from map while holding listLock, so if the
+                // key is still present here the node is also still in the list.
+                if (map.containsKey(key)) {
+                    moveToHead(node);
+                    return node.value;
+                }
+            } finally {
+                listLock.unlock();
+            }
         }
 
-        // Key not in cache, compute it
+        // Cache miss: compute outside the lock (may be expensive)
         V value = computeFunction.apply(key);
         if (value == null) {
-            return null; // Don't cache null values
+            return null;
         }
 
-        // Try to add the computed value to the cache
-        putValue(key, value);
+        listLock.lock();
+        try {
+            // Another thread may have cached this key while we computed
+            Node<K, V> existing = map.get(key);
+            if (existing != null) {
+                moveToHead(existing);
+                return existing.value;
+            }
+            addNewEntry(key, value);
+        } finally {
+            listLock.unlock();
+        }
 
         return value;
     }
 
     /**
-     * Puts a key-value pair in the cache.
+     * Inserts or updates {@code key → value}, evicting the LRU entry if over capacity.
      *
-     * @param key the key to add
-     * @param value the value to add
-     * @return the previous value associated with the key, or null if there was no mapping
+     * <p>The entire operation runs under {@code listLock} so the map and the list
+     * are never observed in an inconsistent state.
      */
     public V put(K key, V value) {
         if (key == null || value == null) {
             throw new NullPointerException("Key and value cannot be null");
         }
 
-        Node<K, V> oldNode = map.get(key);
-        if (oldNode != null) {
-            // Update existing entry
-            V oldValue = oldNode.value;
-            oldNode.value = value;
-            moveToHead(oldNode);
-            return oldValue;
+        listLock.lock();
+        try {
+            Node<K, V> oldNode = map.get(key);
+            if (oldNode != null) {
+                V oldValue = oldNode.value;
+                oldNode.value = value;
+                moveToHead(oldNode);
+                return oldValue;
+            }
+            addNewEntry(key, value);
+        } finally {
+            listLock.unlock();
         }
-
-        // Add new entry
-        putValue(key, value);
         return null;
     }
 
-    /**
-     * Helper method to add a new entry to the cache.
-     */
-    private void putValue(K key, V value) {
-        // Create new node
-        Node<K, V> newNode = new Node<>(key, value);
-
-        // Try to add to map first
-        Node<K, V> existingNode = map.putIfAbsent(key, newNode);
-        if (existingNode != null) {
-            // Another thread beat us to it, just move to head
-            moveToHead(existingNode);
-            return;
-        }
-
-        // Successfully added to map, now add to list
-        addToHead(newNode);
-
-        // Increment size and evict if necessary
-        if (size.incrementAndGet() > capacity) {
-            evictLRU();
-        }
-    }
-
-    /**
-     * Adds a node to the head of the list.
-     */
-    private void addToHead(Node<K, V> node) {
-        listLock.lock();
-        try {
-            Node<K, V> first = head.next;
-            node.next = first;
-            node.prev = head;
-            first.prev = node;
-            head.next = node;
-        } finally {
-            listLock.unlock();
-        }
-    }
-
-    /**
-     * Moves a node to the head of the list.
-     */
-    private void moveToHead(Node<K, V> node) {
-        // Skip if it's already at head
-        if (head.next == node) {
-            return;
-        }
-
-        listLock.lock();
-        try {
-            // Remove from current position
-            removeFromList(node);
-
-            // Add to head
-            addToHead(node);
-        } finally {
-            listLock.unlock();
-        }
-    }
-
-    /**
-     * Removes a node from the list.
-     */
-    private void removeFromList(Node<K, V> node) {
-        Node<K, V> prevNode = node.prev;
-        Node<K, V> nextNode = node.next;
-
-        if (prevNode != null) {
-            prevNode.next = nextNode;
-        }
-
-        if (nextNode != null) {
-            nextNode.prev = prevNode;
-        }
-    }
-
-    /**
-     * Evicts the least recently used entry.
-     */
-    private void evictLRU() {
-        listLock.lock();
-        try {
-            // Get the LRU node (the one before tail)
-            Node<K, V> lastNode = tail.prev;
-
-            // Skip if it's the dummy head
-            if (lastNode == head) {
-                return;
-            }
-
-            // Remove from list
-            removeFromList(lastNode);
-
-            // Remove from map
-            if (lastNode.key != null) {
-                map.remove(lastNode.key);
-                size.decrementAndGet();
-            }
-        } finally {
-            listLock.unlock();
-        }
-    }
-
-    /**
-     * Returns the number of entries in the cache.
-     *
-     * @return the number of entries
-     */
     public int size() {
         return size.get();
     }
 
-    /**
-     * Clears all entries from the cache.
-     */
     public void clear() {
         listLock.lock();
         try {
             map.clear();
-
-            // Reset the list to just dummy nodes
-            Node<K, V> dummyHead = head;
-            Node<K, V> dummyTail = tail;
-            dummyHead.next = dummyTail;
-            dummyTail.prev = dummyHead;
-
+            head.next = tail;
+            tail.prev = head;
             size.set(0);
         } finally {
             listLock.unlock();
         }
     }
 
-    /**
-     * Node for the doubly linked list.
-     */
+    // ── helpers (all called under listLock) ───────────────────────────────────
+
+    private void addNewEntry(K key, V value) {
+        Node<K, V> node = new Node<>(key, value);
+        map.put(key, node);
+        addToHead(node);
+        if (size.incrementAndGet() > capacity) {
+            evictLRU();
+        }
+    }
+
+    private void moveToHead(Node<K, V> node) {
+        if (head.next == node) {
+            return;
+        }
+        removeFromList(node);
+        addToHead(node);
+    }
+
+    private void addToHead(Node<K, V> node) {
+        Node<K, V> first = head.next;
+        node.next = first;
+        node.prev = head;
+        first.prev = node;
+        head.next = node;
+    }
+
+    private void removeFromList(Node<K, V> node) {
+        node.prev.next = node.next;
+        node.next.prev = node.prev;
+    }
+
+    private void evictLRU() {
+        Node<K, V> lru = tail.prev;
+        if (lru == head) {
+            return;
+        }
+        removeFromList(lru);
+        map.remove(lru.key);
+        size.decrementAndGet();
+    }
+
     private static class Node<K, V> {
         final K key;
         V value;
