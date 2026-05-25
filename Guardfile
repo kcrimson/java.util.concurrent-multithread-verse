@@ -8,6 +8,8 @@ BUILD_CMD = [
     " -b revealjs" \
     " -a revealjsdir=https://cdn.jsdelivr.net/npm/reveal.js@5.1.0" \
     " -a puppeteer-config=#{Dir.pwd}/slides/puppeteer-config.json" \
+    " -a code-dir=#{Dir.pwd}/code" \
+    " -a source-highlighter=highlightjs" \
     " -D build/slides" \
     " slides/src/main/slides/index.adoc",
   "cp -r slides/src/main/resources/. build/slides/"
