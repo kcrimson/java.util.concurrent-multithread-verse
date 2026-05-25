@@ -3,14 +3,12 @@
 :idprefix:
 :stem: asciimath
 :backend: html
-:source-highlighter: highlightjs
-:highlightjs-style: github
 :revealjs_history: true
 :revealjs_theme: night
 :revealjs_controls: false
 :revealjs_width: 1920
 :revealjs_height: 1080
-:revealjs_plugins: src/main/slides/revealjs-plugins.js
+:revealjs_plugins: revealjs-plugins.js
 :imagesdir: images
 :customcss: css/custom.css
 :icons: font
@@ -411,21 +409,21 @@ and your assumptions about memory model
 
 [,java]
 ----
-include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=24,27,29..43]
+include::{code-dir}/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=24,27,29..43]
 ----
 
 === jcstress arbiter
 
 [,java]
 ----
-include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=93..97]
+include::{code-dir}/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=93..97]
 ----
 
 === jcstress outcomes
 
 [source,java,]
 ----
-include::../code/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=17..21]
+include::{code-dir}/src/jcstress/java/pl/symentis/concurrent/pool/ValidResourceTest.java[lines=17..21]
 ----
 
 === worth noting
@@ -536,7 +534,7 @@ deactivate A
 
 [,java]
 ----
-include::../code/src/main/java/pl/symentis/concurrent/actor/ActorSystem.java[lines=81..96]
+include::{code-dir}/src/main/java/pl/symentis/concurrent/actor/ActorSystem.java[lines=81..96]
 ----
 
 === benchmarking concurrent code
@@ -592,7 +590,7 @@ The sorting ensures reducers receive their input values in a deterministic order
 
 [,java]
 ----
-include::../code/src/main/java/pl/symentis/concurrent/mapreduce/ParallelMapReduce.java[lines=45..78]
+include::{code-dir}/src/main/java/pl/symentis/concurrent/mapreduce/ParallelMapReduce.java[lines=45..78]
 ----
 
 === worth noting
@@ -626,7 +624,7 @@ Let's implement in memory pubsub, modeled after Kafka, with consumer groups and 
 
 [,java]
 ----
-include::../code/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=57..64]
+include::{code-dir}/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=57..64]
 ----
 
 changes made to `messages` are visible to other threads, +
@@ -638,7 +636,7 @@ are visible to other threads which don't form happens before relation
 
 [,java]
 ----
-include::../code/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=70..106]
+include::{code-dir}/src/main/java/pl/symentis/concurrent/pubsub/PubSub.java[lines=70..106]
 ----
 
 === worth noting
