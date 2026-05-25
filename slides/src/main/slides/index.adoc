@@ -475,7 +475,7 @@ The model achieves concurrency through parallel message processing, where multip
 
 === !
 
-[mermaid,format=svg]
+[mermaid,format=svg,role="fit-diagram"]
 ----
 %%{init: {'theme': 'dark'}}%%
 sequenceDiagram

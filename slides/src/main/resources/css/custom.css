@@ -32,3 +32,11 @@ h1{
 .title h1{
     font-size: 128px;
 }
+
+.reveal .fit-diagram img {
+    height: 640px;
+    width: auto;
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+}
